@@ -1,0 +1,1 @@
+/usr/bin/cc  -Wall -Wno-unused-function CMakeFiles/cminus_parser.dir/main.c.o CMakeFiles/cminus_parser.dir/util.c.o CMakeFiles/cminus_parser.dir/cminus_lexer.c.o CMakeFiles/cminus_parser.dir/cminus.tab.c.o -o cminus_parser 
