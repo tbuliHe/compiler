@@ -1,3 +1,7 @@
+// 说明文档-样例1
+/* 理想输出：
+Error type A at Line 8: Mysterious character "~". 
+*/
 int main() 
 {
   int i = 1;
