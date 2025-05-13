@@ -1,4 +1,0 @@
-/home/dim/code/compiler/build/CMakeFiles/generate_cminus_sources.dir
-/home/dim/code/compiler/build/CMakeFiles/cminus_parser.dir
-/home/dim/code/compiler/build/CMakeFiles/edit_cache.dir
-/home/dim/code/compiler/build/CMakeFiles/rebuild_cache.dir
