@@ -430,32 +430,20 @@ Args : Exp COMMA Args
 
 void yyerror(const char* msg)
 {
-    static char last_msg[256] = "";
-    if (!lexical_error_flag && 
-        (last_error_line != yylloc.first_line || 
-         strcmp(last_msg, msg) != 0)) {
-        
+    if (!lexical_error_flag && last_error_line != yylloc.first_line) {
         syntax_error_flag = 1;
         ERR = 1;
         last_error_line = yylloc.first_line;
-        strncpy(last_msg, msg, 255);
-        
         fprintf(stderr, "Error type B at Line %d: %s.\n", yylloc.first_line, msg);
     }
 }
 
 void yyError(char* msg)
 {
-    static char last_msg[256] = "";
-    if (!lexical_error_flag && 
-        (last_error_line != yylloc.first_line || 
-         strcmp(last_msg, msg) != 0)) {
-        
+    if (!lexical_error_flag && last_error_line != yylloc.first_line) {
         syntax_error_flag = 1;
         ERR = 1;
         last_error_line = yylloc.first_line;
-        strncpy(last_msg, msg, 255);
-        
         fprintf(stderr, "Error type B at Line %d: %s.\n", yylloc.first_line, msg);
     }
 }
