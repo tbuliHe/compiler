@@ -4,11 +4,13 @@
 #include <string.h>
 int yylex(void);
 void yyerror(const char* msg);
+void yyError(char* msg);
 int ERR = 0;
 int last_error_line = -1;
 TreeNode* syntaxTree = NULL;
 %}
 
+%locations
 %define parse.error verbose
 %define parse.lac full
 
@@ -53,7 +55,7 @@ Program : ExtDefList { syntaxTree = $1; }
 
 ExtDefList : ExtDef ExtDefList 
              { 
-                 $$ = newNode(ExtDefListK, $1->lineno); 
+                 $$ = newNode(ExtDefListK, @1.first_line); 
                  $$->child[0] = $1; 
                  $$->child[1] = $2; 
              }
@@ -65,18 +67,18 @@ ExtDefList : ExtDef ExtDefList
 
 ExtDef : Specifier ExtDecList SEMI 
          { 
-             $$ = newNode(ExtDefK, $1->lineno); 
+             $$ = newNode(ExtDefK, @1.first_line); 
              $$->child[0] = $1; 
              $$->child[1] = $2; 
          }
        | Specifier SEMI 
          { 
-             $$ = newNode(ExtDefK, $1->lineno); 
+             $$ = newNode(ExtDefK, @1.first_line); 
              $$->child[0] = $1; 
          }
        | Specifier FunDec CompSt 
          { 
-             $$ = newNode(ExtDefK, $1->lineno); 
+             $$ = newNode(ExtDefK, @1.first_line); 
              $$->child[0] = $1; 
              $$->child[1] = $2; 
              $$->child[2] = $3; 
@@ -85,20 +87,21 @@ ExtDef : Specifier ExtDecList SEMI
 
 ExtDecList : VarDec 
              { 
-                 $$ = newNode(ExtDecListK, $1->lineno); 
+                 $$ = newNode(ExtDecListK, @1.first_line); 
                  $$->child[0] = $1; 
              }
            | VarDec COMMA ExtDecList 
              { 
-                 $$ = newNode(ExtDecListK, $1->lineno); 
+                 $$ = newNode(ExtDecListK, @1.first_line); 
                  $$->child[0] = $1; 
                  $$->child[1] = $3; 
              }
+           | VarDec error ExtDecList { yyError("Syntax error in ExtDecList"); $$ = NULL; }
            ;
 
 Specifier : TYPE 
             { 
-                $$ = newNode(SpecifierK, lineno); 
+                $$ = newNode(SpecifierK, @1.first_line); 
                 $$->name = $1; 
             }
           | StructSpecifier 
@@ -109,20 +112,20 @@ Specifier : TYPE
 
 StructSpecifier : STRUCT OptTag LC DefList RC 
                   { 
-                      $$ = newNode(StructSpecifierK, lineno); 
+                      $$ = newNode(StructSpecifierK, @1.first_line); 
                       $$->child[0] = $2; 
                       $$->child[1] = $4; 
                   }
                 | STRUCT Tag 
                   { 
-                      $$ = newNode(StructSpecifierK, lineno); 
+                      $$ = newNode(StructSpecifierK, @1.first_line); 
                       $$->child[0] = $2; 
                   }
                 ;
 
 OptTag : ID 
          { 
-             $$ = newNode(OptTagK, lineno); 
+             $$ = newNode(OptTagK, @1.first_line); 
              $$->name = $1; 
          }
        | /* empty */ 
@@ -133,53 +136,55 @@ OptTag : ID
 
 Tag : ID 
       { 
-          $$ = newNode(TagK, lineno); 
+          $$ = newNode(TagK, @1.first_line); 
           $$->name = $1; 
       }
     ;
 
 VarDec : ID 
          { 
-             $$ = newNode(VarDecK, lineno); 
+             $$ = newNode(VarDecK, @1.first_line); 
              $$->name = $1; 
          }
        | VarDec LB INT_TOKEN RB 
          { 
-             $$ = newNode(VarDecK, $1->lineno); 
+             $$ = newNode(VarDecK, @1.first_line); 
              $$->child[0] = $1; 
              $$->ival = $3; 
          }
+       | VarDec LB error RB { yyError("Invalid array size"); $$ = NULL; }
        ;
 
 FunDec : ID LP VarList RP 
          { 
-             $$ = newNode(FunDecK, lineno); 
+             $$ = newNode(FunDecK, @1.first_line); 
              $$->name = $1; 
              $$->child[0] = $3; 
          }
        | ID LP RP 
          { 
-             $$ = newNode(FunDecK, lineno); 
+             $$ = newNode(FunDecK, @1.first_line); 
              $$->name = $1; 
          }
+       | ID LP error RP { yyError("Invalid function parameter list"); $$ = NULL; }
        ;
 
 VarList : ParamDec COMMA VarList 
           { 
-              $$ = newNode(VarListK, $1->lineno); 
+              $$ = newNode(VarListK, @1.first_line); 
               $$->child[0] = $1; 
               $$->child[1] = $3; 
           }
         | ParamDec 
           { 
-              $$ = newNode(VarListK, $1->lineno); 
+              $$ = newNode(VarListK, @1.first_line); 
               $$->child[0] = $1; 
           }
         ;
 
 ParamDec : Specifier VarDec 
            { 
-               $$ = newNode(ParamDecK, $1->lineno); 
+               $$ = newNode(ParamDecK, @1.first_line); 
                $$->child[0] = $1; 
                $$->child[1] = $2; 
            }
@@ -187,7 +192,7 @@ ParamDec : Specifier VarDec
 
 CompSt : LC DefList StmtList RC 
          { 
-             $$ = newNode(CompStK, lineno); 
+             $$ = newNode(CompStK, @1.first_line); 
              $$->child[0] = $2; 
              $$->child[1] = $3; 
          }
@@ -195,7 +200,7 @@ CompSt : LC DefList StmtList RC
 
 StmtList : Stmt StmtList 
            { 
-               $$ = newNode(StmtListK, $1->lineno); 
+               $$ = newNode(StmtListK, @1.first_line); 
                $$->child[0] = $1; 
                $$->child[1] = $2; 
            }
@@ -207,7 +212,7 @@ StmtList : Stmt StmtList
 
 Stmt : Exp SEMI 
        { 
-           $$ = newNode(StmtK, $1->lineno); 
+           $$ = newNode(StmtK, @1.first_line); 
            $$->child[0] = $1; 
        }
      | CompSt 
@@ -216,38 +221,40 @@ Stmt : Exp SEMI
        }
      | RETURN Exp SEMI 
        { 
-           $$ = newNode(StmtK, lineno); 
+           $$ = newNode(StmtK, @1.first_line); 
            $$->child[0] = $2; 
        }
      | IF LP Exp RP Stmt %prec LOWER_THAN_ELSE
        { 
-           $$ = newNode(StmtK, lineno); 
+           $$ = newNode(StmtK, @1.first_line); 
            $$->child[0] = $3; 
            $$->child[1] = $5; 
        }
      | IF LP Exp RP Stmt ELSE Stmt 
        { 
-           $$ = newNode(StmtK, lineno); 
+           $$ = newNode(StmtK, @1.first_line); 
            $$->child[0] = $3; 
            $$->child[1] = $5; 
            $$->child[2] = $7; 
        }
      | WHILE LP Exp RP Stmt 
        { 
-           $$ = newNode(StmtK, lineno); 
+           $$ = newNode(StmtK, @1.first_line); 
            $$->child[0] = $3; 
            $$->child[1] = $5; 
        }
+     | Exp error SEMI { yyError("Missing \";\""); $$ = NULL; }
+     | Exp error { yyError("Missing \";\""); $$ = NULL; }
      | IF LP Exp RP Exp error ELSE  /* 特殊情况: if (...) exp else */
        { 
-           yyerror("Missing \";\"");
+           yyError("Missing \";\"");
            $$ = NULL;
        }
      ;
 
 DefList : Def DefList 
           { 
-              $$ = newNode(DefListK, $1->lineno); 
+              $$ = newNode(DefListK, @1.first_line); 
               $$->child[0] = $1; 
               $$->child[1] = $2; 
           }
@@ -259,20 +266,22 @@ DefList : Def DefList
 
 Def : Specifier DecList SEMI 
       { 
-          $$ = newNode(DefK, $1->lineno); 
+          $$ = newNode(DefK, @1.first_line); 
           $$->child[0] = $1; 
           $$->child[1] = $2; 
       }
+    | Specifier error SEMI { yyError("Syntax error in Def"); $$ = NULL; }
+    | Specifier DecList error { yyError("Missing \";\" in Def"); $$ = NULL; }
     ;
 
 DecList : Dec 
           { 
-              $$ = newNode(DecListK, $1->lineno); 
+              $$ = newNode(DecListK, @1.first_line); 
               $$->child[0] = $1; 
           }
         | Dec COMMA DecList 
           { 
-              $$ = newNode(DecListK, $1->lineno); 
+              $$ = newNode(DecListK, @1.first_line); 
               $$->child[0] = $1; 
               $$->child[1] = $3; 
           }
@@ -280,12 +289,12 @@ DecList : Dec
 
 Dec : VarDec 
       { 
-          $$ = newNode(DecK, $1->lineno); 
+          $$ = newNode(DecK, @1.first_line); 
           $$->child[0] = $1; 
       }
     | VarDec ASSIGNOP Exp 
       { 
-          $$ = newNode(DecK, $1->lineno); 
+          $$ = newNode(DecK, @1.first_line); 
           $$->child[0] = $1; 
           $$->child[1] = $3; 
       }
@@ -293,50 +302,50 @@ Dec : VarDec
 
 Exp : Exp ASSIGNOP Exp 
       { 
-          $$ = newNode(ExpK, $1->lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->child[0] = $1; 
           $$->child[1] = $3; 
       }
     | Exp AND Exp 
       { 
-          $$ = newNode(ExpK, $1->lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->child[0] = $1; 
           $$->child[1] = $3; 
       }
     | Exp OR Exp 
       { 
-          $$ = newNode(ExpK, $1->lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->child[0] = $1; 
           $$->child[1] = $3; 
       }
     | Exp RELOP Exp 
       { 
-          $$ = newNode(ExpK, $1->lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->child[0] = $1; 
           $$->child[1] = $3; 
           $$->name = $2; 
       }
     | Exp PLUS Exp 
       { 
-          $$ = newNode(ExpK, $1->lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->child[0] = $1; 
           $$->child[1] = $3; 
       }
     | Exp MINUS Exp 
       { 
-          $$ = newNode(ExpK, $1->lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->child[0] = $1; 
           $$->child[1] = $3; 
       }
     | Exp STAR Exp 
       { 
-          $$ = newNode(ExpK, $1->lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->child[0] = $1; 
           $$->child[1] = $3; 
       }
     | Exp DIV Exp 
       { 
-          $$ = newNode(ExpK, $1->lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->child[0] = $1; 
           $$->child[1] = $3; 
       }
@@ -346,68 +355,73 @@ Exp : Exp ASSIGNOP Exp
       }
     | MINUS Exp %prec UMINUS
       { 
-          $$ = newNode(ExpK, lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->child[0] = $2; 
       }
     | NOT Exp 
       { 
-          $$ = newNode(ExpK, lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->child[0] = $2; 
       }
     | ID LP Args RP 
       { 
-          $$ = newNode(ExpK, lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->name = $1; 
           $$->child[0] = $3; 
       }
     | ID LP RP 
       { 
-          $$ = newNode(ExpK, lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->name = $1; 
       }
     | Exp LB Exp RB 
       { 
-          $$ = newNode(ExpK, $1->lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->child[0] = $1; 
           $$->child[1] = $3; 
       }
     | Exp LB Exp COMMA Exp RB  /* 特殊情况: a[5,3] */
       { 
-          yyerror("Missing \"]\"");
+          yyError("Missing \"]\"");
           $$ = NULL; 
       }
     | Exp DOT ID 
       { 
-          $$ = newNode(ExpK, $1->lineno); 
+          $$ = newNode(ExpK, @1.first_line); 
           $$->child[0] = $1; 
           $$->name = $3; 
       }
     | ID 
       { 
-          $$ = newNode(IdK, lineno); 
+          $$ = newNode(IdK, @1.first_line); 
           $$->name = $1; 
       }
     | INT_TOKEN 
       { 
-          $$ = newNode(IntK, lineno); 
+          $$ = newNode(IntK, @1.first_line); 
           $$->ival = $1; 
       }
     | FLOAT_TOKEN 
       { 
-          $$ = newNode(FloatK, lineno); 
+          $$ = newNode(FloatK, @1.first_line); 
           $$->fval = $1; 
       }
+    | Exp ASSIGNOP error { yyError("Invalid assignment"); $$ = NULL; }
+    | LP error RP { yyError("Syntax error in expression"); $$ = NULL; }
+    | ID LP error RP { yyError("Syntax error in function call"); $$ = NULL; }
+    | Exp LB error RB { yyError("Invalid array index"); $$ = NULL; }
+    | Exp LB Exp error RB { yyError("Missing \"]\""); $$ = NULL; }
     ;
 
 Args : Exp COMMA Args 
        { 
-           $$ = newNode(ArgsK, $1->lineno); 
+           $$ = newNode(ArgsK, @1.first_line); 
            $$->child[0] = $1; 
            $$->child[1] = $3; 
        }
      | Exp 
        { 
-           $$ = newNode(ArgsK, $1->lineno); 
+           $$ = newNode(ArgsK, @1.first_line); 
            $$->child[0] = $1; 
        }
      ;
@@ -416,17 +430,32 @@ Args : Exp COMMA Args
 
 void yyerror(const char* msg)
 {
-    if (!lexical_error_flag && last_error_line != lineno) {
+    static char last_msg[256] = "";
+    if (!lexical_error_flag && 
+        (last_error_line != yylloc.first_line || 
+         strcmp(last_msg, msg) != 0)) {
+        
         syntax_error_flag = 1;
         ERR = 1;
-        last_error_line = lineno;
+        last_error_line = yylloc.first_line;
+        strncpy(last_msg, msg, 255);
         
-        /* 为特殊错误情况提供自定义消息，其余使用标准语法错误消息 */
-        if (strcmp(msg, "Missing \"]\"") == 0 || 
-            strcmp(msg, "Missing \";\"") == 0) {
-            fprintf(stderr, "Error type B at Line %d: %s.\n", lineno, msg);
-        } else {
-            fprintf(stderr, "Error type B at Line %d: %s.\n", lineno, msg);
-        }
+        fprintf(stderr, "Error type B at Line %d: %s.\n", yylloc.first_line, msg);
+    }
+}
+
+void yyError(char* msg)
+{
+    static char last_msg[256] = "";
+    if (!lexical_error_flag && 
+        (last_error_line != yylloc.first_line || 
+         strcmp(last_msg, msg) != 0)) {
+        
+        syntax_error_flag = 1;
+        ERR = 1;
+        last_error_line = yylloc.first_line;
+        strncpy(last_msg, msg, 255);
+        
+        fprintf(stderr, "Error type B at Line %d: %s.\n", yylloc.first_line, msg);
     }
 }

@@ -5,11 +5,16 @@
 
 int yycolumn = 1;
 int err = 0;
-#define YY_USER_ACTION yycolumn += yyleng;
+#define YY_USER_ACTION \
+    yylloc.first_line = yylloc.last_line = yylineno; \
+    yylloc.first_column = yycolumn; \
+    yylloc.last_column = yycolumn + yyleng - 1; \
+    yycolumn += yyleng;
 %}
 
 %option yylineno
 
+/* 正则定义 */
 digit           [0-9]
 nzdigit         [1-9]
 octdigit        [0-7]
@@ -28,10 +33,10 @@ newline         \n
 %%
 
 "/*"            {
-    int start_line = lineno;
+    int start_line = yylineno;
     int c1, c2;
     c1 = input();
-    if (c1 == '\n') lineno++;
+    if (c1 == '\n') yylineno++;
     while (1) {
         if (c1 == EOF) {
             fprintf(stderr, "Error type A at Line %d: Unterminated comment.\n", start_line);
@@ -42,10 +47,10 @@ newline         \n
         if (c1 == '*') {
             c2 = input();
             if (c2 == '/') break;
-            if (c2 == '\n') lineno++;
+            if (c2 == '\n') yylineno++;
             unput(c2);
         }
-        if (c1 == '\n') lineno++;
+        if (c1 == '\n') yylineno++;
         c1 = input();
     }
 }
@@ -82,7 +87,7 @@ newline         \n
     int i = 2;
     for (; yytext[i]; ++i)
         if (!isxdigit(yytext[i])) {
-            fprintf(stderr, "Error type A at Line %d: Mysterious character \"%s\".\n", lineno, yytext);
+            fprintf(stderr, "Error type A at Line %d: Mysterious character \"%s\".\n", yylineno, yytext);
             lexical_error_flag = 1;
             err = 1;
             return ERROR_TOKEN;
@@ -94,7 +99,7 @@ newline         \n
     int i = 1;
     for (; yytext[i]; ++i)
         if (yytext[i] < '0' || yytext[i] > '7') {
-            fprintf(stderr, "Error type A at Line %d: Mysterious character \"%s\".\n", lineno, yytext);
+            fprintf(stderr, "Error type A at Line %d: Mysterious character \"%s\".\n", yylineno, yytext);
             lexical_error_flag = 1;
             err = 1;
             return ERROR_TOKEN;
@@ -107,7 +112,7 @@ newline         \n
     char* endptr;
     yylval.fval = strtof(yytext, &endptr);
     if (*endptr != 0) {
-        fprintf(stderr, "Error type A at Line %d: Mysterious character \"%s\".\n", lineno, yytext);
+        fprintf(stderr, "Error type A at Line %d: Mysterious character \"%s\".\n", yylineno, yytext);
         lexical_error_flag = 1;
         err = 1;
         return ERROR_TOKEN;
@@ -116,10 +121,10 @@ newline         \n
 }
 {identifier}    { yylval.sval = copyString(yytext); return ID; }
 
-{newline}       { lineno++; yycolumn = 1; }
+{newline}       { yycolumn = 1; }
 [ \t\r\f]+      { /* 忽略空白 */ }
 .               {
-    fprintf(stderr, "Error type A at Line %d: Mysterious character \"%s\".\n", lineno, yytext);
+    fprintf(stderr, "Error type A at Line %d: Mysterious character \"%s\".\n", yylineno, yytext);
     lexical_error_flag = 1;
     err = 1;
     return ERROR_TOKEN;
@@ -128,6 +133,8 @@ newline         \n
 %%
 
 int yywrap(void) {
-
+    /* 如果词法分析出错，直接退出，不进行语法分析 */
+    if(err == 1)
+        exit(0);
     return 1;
 }

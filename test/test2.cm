@@ -1,8 +1,4 @@
 // 说明文档-样例2
-/* 理想输出：
-Error type B at Line 10: Missing "]". 
-Error type B at Line 11: Missing ";". 
-*/
 int main() 
 {
   float a[10][2];
