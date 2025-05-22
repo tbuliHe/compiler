@@ -2,7 +2,6 @@
 
 int lexical_error_flag = 0;
 int syntax_error_flag = 0;
-
 char* copyString(const char* s) {
     if (!s) return NULL;
     char* t = (char*)malloc(strlen(s) + 1);

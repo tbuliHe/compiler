@@ -5,6 +5,7 @@ extern int yyparse(void);
 extern FILE* yyin;
 extern TreeNode* syntaxTree;
 extern int lexical_error_flag, syntax_error_flag;
+int lineno = 1;
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
